@@ -13,7 +13,7 @@ Live: https://lukasposolda-qwertz.github.io/cafes-of-stockholm/
 - `tools/build_data.py` downloads cafés, coffee shops and bakeries from OpenStreetMap's Overpass API, parses their opening hours and writes `data/cafes.json`. It needs only the Python standard library. Run it from the repo root.
 - `index.html`, `style.css` and `app.js` are a static MapLibre site with no build step and no backend.
 
-The data is a one-time snapshot, with its date shown on the page.
+The data is a snapshot, with its date shown on the page. A GitHub Action (`.github/workflows/rebuild-data.yml`) rebuilds it every Monday at 03:00 UTC and commits the new file, and GitHub Pages then republishes the site. To pick up OSM edits straight away, open the Actions tab, choose "Rebuild café data" and press "Run workflow". If Overpass is down or returns a suspiciously small result, the job fails and the old data stays.
 
 ## Known limits
 
