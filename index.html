@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cafes of Stockholm</title>
+<meta name="description" content="A map of Stockholm's cafés that shows which ones are open at the time you choose.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%236f4323' d='M5 9h18v9a7 7 0 0 1-7 7h-4a7 7 0 0 1-7-7zM23 11h2a4 4 0 0 1 0 8h-2v-2.500h2a1.500 1.500 0 0 0 0-3h-2z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="map" aria-label="Map of cafés in Stockholm"></div>
+
+<section id="panel" class="card-surface">
+  <header>
+    <h1>Cafes of Stockholm</h1>
+    <p id="count" aria-live="polite">Loading cafés…</p>
+  </header>
+  <details id="filters">
+    <summary>Filters and legend</summary>
+    <div class="toggles">
+      <label><input type="checkbox" data-toggle="specialty"><span>Specialty</span><em data-count="specialty"></em></label>
+      <label><input type="checkbox" data-toggle="microroasting"><span>Microroasting</span><em data-count="microroasting"></em></label>
+      <label><input type="checkbox" data-toggle="outdoor"><span>Outdoor seating</span><em data-count="outdoor"></em></label>
+      <label><input type="checkbox" data-toggle="hideChains"><span>Hide chains</span><em data-count="chain"></em></label>
+      <label><input type="checkbox" data-toggle="bakeries"><span>Add bakeries</span><em data-count="bakery"></em></label>
+      <label><input type="checkbox" data-toggle="showNoHours" checked><span>Show cafés without hours</span><em data-count="noHours"></em></label>
+    </div>
+    <p class="hint">Numbers show cafés with each tag in OpenStreetMap. Tags are often missing, so a small number doesn't mean few such places exist.</p>
+    <ul class="legend">
+      <li><canvas data-cup="open" width="48" height="48"></canvas>Open</li>
+      <li><canvas data-cup="closed" width="48" height="48"></canvas>Closed</li>
+      <li><canvas data-cup="unknown" width="48" height="48"></canvas>No hours</li>
+    </ul>
+    <p class="credit">Test version. Hours come from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>, snapshot <span id="snapshot"></span>. Check before you go.<br>© 2026 Lukas Posolda</p>
+  </details>
+</section>
+
+<div id="toolbar" class="card-surface" role="group" aria-label="Map view">
+  <button type="button" data-style="light" aria-pressed="true">Light</button>
+  <button type="button" data-style="standard" aria-pressed="false">Standard</button>
+  <button type="button" id="tilt">Tilt</button>
+</div>
+
+<section id="time" class="card-surface" aria-label="Choose a day and time">
+  <div class="time-head">
+    <div id="days" role="group" aria-label="Day of the week"></div>
+    <button type="button" id="now">Now</button>
+  </div>
+  <p id="window" aria-live="polite"></p>
+  <div id="range">
+    <div class="track"></div>
+    <div class="fill" id="fill" title="Drag to move the whole time window"></div>
+    <input type="range" id="from" min="300" max="1440" step="15" aria-label="Open from">
+    <input type="range" id="to" min="300" max="1440" step="15" aria-label="Open until">
+  </div>
+  <div class="ticks" aria-hidden="true">
+    <span style="left:0%">05</span><span style="left:21.05%">09</span><span style="left:42.11%">13</span>
+    <span style="left:63.16%">17</span><span style="left:84.21%">21</span><span style="left:100%">24</span>
+  </div>
+</section>
+
+<aside id="detail" class="card-surface" hidden></aside>
+<div id="fatal" hidden></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
