@@ -55,27 +55,23 @@ summary { margin-top: 10px; cursor: pointer; font-weight: 600; font-size: 13px; 
 #days button[aria-pressed="true"] { background: var(--coffee); color: #fff; font-weight: 600; }
 #now { border: 1px solid var(--line); background: #fff; border-radius: 7px; height: 30px; padding: 0 12px; font-size: 13px; }
 #now:hover { background: #f0e9df; }
+#now[aria-pressed="true"] { background: var(--coffee); border-color: var(--coffee); color: #fff; }
 #window { margin: 6px 0 2px; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 #range { position: relative; height: 34px; touch-action: none; }
-#range .track, #range .fill { position: absolute; top: 14px; height: 6px; border-radius: 3px; }
-#range .track { left: 0; right: 0; background: var(--line); }
-#range .fill { background: var(--coffee); cursor: grab; }
-#range .fill:active { cursor: grabbing; }
-/* The fill's visible bar is thin, this widens its touch area */
-#range .fill::before { content: ""; position: absolute; left: 0; right: 0; top: -14px; bottom: -14px; }
+#range .track { position: absolute; top: 14px; left: 0; right: 0; height: 6px; border-radius: 3px; background: var(--line); }
 #range input[type=range] {
   position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; background: none;
-  appearance: none; -webkit-appearance: none; pointer-events: none;
+  appearance: none; -webkit-appearance: none; cursor: pointer;
 }
 #range input::-webkit-slider-runnable-track { background: none; }
 #range input::-moz-range-track { background: none; }
 #range input::-webkit-slider-thumb {
-  -webkit-appearance: none; pointer-events: auto; width: 24px; height: 24px; border-radius: 50%;
+  -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%;
   background: #fff; border: 3px solid var(--coffee); box-shadow: 0 1px 4px rgba(0, 0, 0, .3); cursor: ew-resize;
 }
 #range input::-moz-range-thumb {
-  pointer-events: auto; width: 18px; height: 18px; border-radius: 50%;
+  width: 18px; height: 18px; border-radius: 50%;
   background: #fff; border: 3px solid var(--coffee); box-shadow: 0 1px 4px rgba(0, 0, 0, .3); cursor: ew-resize;
 }
 /* Tick labels line up with thumb centres, which stop half a thumb short of each end */

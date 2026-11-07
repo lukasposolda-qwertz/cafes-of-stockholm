@@ -1,6 +1,10 @@
 # Cafes of Stockholm
 
-A test map of Stockholm's cafés. The main feature is a time slider: pick a day and a time window, and see which cafés are open the whole time.
+A test map of Stockholm's cafés. The main feature is a time slider: it starts at the current time, and you can pick another day and time to see which cafés are open then.
+
+## Scope
+
+Every place OpenStreetMap tags as `amenity=cafe`, `shop=coffee` or `shop=bakery` inside six municipalities: Stockholm, Solna, Sundbyberg, Nacka, Lidingö and Danderyd. The borders come from OSM. Bakeries are hidden until switched on.
 
 Live: https://lukasposolda-qwertz.github.io/cafes-of-stockholm/
 

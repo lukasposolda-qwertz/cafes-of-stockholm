@@ -2,7 +2,8 @@
 
 const DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const SLIDER_MIN = 300, SLIDER_MAX = 1440, STEP = 15;
+// Cafés open and close inside this range: under 2% open before 06:00 or close after 22:00.
+const SLIDER_MIN = 360, SLIDER_MAX = 1320, STEP = 5;
 const OFM = "https://tiles.openfreemap.org";
 const STYLES = {
   light: { url: `${OFM}/styles/positron`, building: "#e3e4e6" },
@@ -11,13 +12,14 @@ const STYLES = {
 const CUP_COLOURS = { open: "#6f4323", closed: "#a8968a", unknown: "#9aa0a6", bakery: "#b8741f", selected: "#c8501a" };
 
 const state = {
-  day: 0, from: 540, to: 600, styleName: "light", selected: null,
-  toggles: { specialty: false, microroasting: false, outdoor: false, hideChains: false, bakeries: false, showNoHours: true },
+  // follow: the time tracks the clock until someone picks a day or time themselves.
+  day: 0, time: 540, follow: true, styleName: "light", selected: null,
+  toggles: { specialty: true, microroasting: false, outdoor: false, hideChains: false, bakeries: false, showNoHours: true },
 };
 let places = [];
 
 const $ = (selector) => document.querySelector(selector);
-const fromInput = $("#from"), toInput = $("#to");
+const timeInput = $("#at");
 
 // ---- time helpers -----------------------------------------------------------------------
 function stockholmNow() {
@@ -39,14 +41,13 @@ function spansFor(place, dayIndex) {
   return carried.concat(today);
 }
 
-function isOpen(place, dayIndex, from, to) {
-  return spansFor(place, dayIndex).some(([opens, closes]) =>
-    from === to ? opens <= from && from < closes : opens <= from && to <= closes);
+function isOpen(place, dayIndex, time) {
+  return spansFor(place, dayIndex).some(([opens, closes]) => opens <= time && time < closes);
 }
 
 function statusOf(place) {
   if (!place.hours) return "unknown";
-  return isOpen(place, state.day, state.from, state.to) ? "open" : "closed";
+  return isOpen(place, state.day, state.time) ? "open" : "closed";
 }
 
 function isVisible(place) {
@@ -118,11 +119,22 @@ if (!probe.getContext("webgl2") && !probe.getContext("webgl")) {
 }
 
 const isPhone = matchMedia("(max-width: 720px)").matches;
+// The inner city, from Kristineberg to Djurgården and Vasastan to Hammarby sjöstad, centred on Slussen.
+const SLUSSEN = [18.0718, 59.3197];
+const HOME_BOUNDS = [[SLUSSEN[0] - 0.081, SLUSSEN[1] - 0.0305], [SLUSSEN[0] + 0.081, SLUSSEN[1] + 0.0305]];
+// Fit it into the part of the map the panels leave free.
+function homePadding() {
+  const panel = $("#panel").getBoundingClientRect(), time = $("#time").getBoundingClientRect();
+  const fit = (value, room) => Math.max(8, Math.min(value, room / 3));
+  return isPhone
+    ? { top: fit(panel.bottom + 8, innerHeight), bottom: fit(innerHeight - time.top + 8, innerHeight), left: 8, right: 8 }
+    : { top: 20, bottom: fit(innerHeight - time.top + 8, innerHeight), left: fit(panel.right + 8, innerWidth), right: 60 };
+}
 const map = new maplibregl.Map({
   container: "map",
   style: STYLES.light.url,
-  center: isPhone ? [18.07, 59.325] : [18.065, 59.327],
-  zoom: isPhone ? 12.3 : 13,
+  bounds: HOME_BOUNDS,
+  fitBoundsOptions: { padding: homePadding() },
   pitch: 0,
   maxPitch: 70,
   attributionControl: false,
@@ -247,39 +259,25 @@ function applyFilters() {
 
 // ---- controls ---------------------------------------------------------------------------
 function renderTime() {
-  fromInput.value = state.from;
-  toInput.value = state.to;
-  // Thumb centres stop half a thumb short of the track ends, so the fill is positioned the same way.
-  const span = SLIDER_MAX - SLIDER_MIN;
-  const position = (m) => `calc(12px + (100% - 24px) * ${(m - SLIDER_MIN) / span})`;
-  const fill = $("#fill");
-  fill.style.left = position(state.from);
-  fill.style.width = `calc((100% - 24px) * ${(state.to - state.from) / span})`;
-  // Keep a thumb reachable when both sit at the far right.
-  fromInput.style.zIndex = state.from >= SLIDER_MAX - STEP ? 3 : 1;
-  toInput.style.zIndex = 2;
-  const when = DAY_NAMES[state.day];
-  $("#window").textContent = state.from === state.to
-    ? `${when}: open at ${clock(state.from)}`
-    : `${when}: open the whole time ${clock(state.from)}–${clock(state.to)}`;
+  timeInput.value = state.time;
+  const day = DAY_NAMES[state.day];
+  const actual = stockholmNow().minutes;
+  $("#window").textContent = !state.follow
+    ? `Open ${day} at ${clock(state.time)}`
+    : actual === state.time
+      ? `Open now: ${day} ${clock(state.time)}`
+      : `Open ${day} at ${clock(state.time)} (it's ${clock(actual)} now)`;
+  $("#now").setAttribute("aria-pressed", String(state.follow));
   document.querySelectorAll("#days button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === state.day)));
 }
 
 function changed() { renderTime(); requestFilters(); }
 
-function setNow(forLoad) {
+// Outside the slider's hours the nearest end is shown, and the label says what time it really is.
+function setNow() {
   const now = stockholmNow();
   state.day = now.day;
-  const rounded = Math.floor(now.minutes / STEP) * STEP;
-  if (forLoad && (rounded < 360 || rounded >= 1320)) {
-    // Almost everything is shut at night, so a first visit then starts on the coming morning instead.
-    state.from = 540; state.to = 600;
-  } else if (rounded < SLIDER_MIN) {
-    state.from = state.to = SLIDER_MIN;
-  } else {
-    state.from = rounded;
-    state.to = forLoad ? Math.min(rounded + 60, SLIDER_MAX) : rounded;
-  }
+  state.time = Math.min(SLIDER_MAX, Math.max(SLIDER_MIN, now.minutes));
 }
 
 function setupControls() {
@@ -289,24 +287,19 @@ function setupControls() {
     b.type = "button";
     b.textContent = name.slice(0, 3);
     b.setAttribute("aria-label", name);
-    b.addEventListener("click", () => { state.day = i; changed(); });
+    b.addEventListener("click", () => { state.day = i; state.follow = false; changed(); });
     days.append(b);
   });
-  // Dragging one handle past the other pushes it along, so the two never swap.
-  fromInput.addEventListener("input", () => {
-    state.from = Number(fromInput.value);
-    if (state.from > state.to) state.to = state.from;
-    changed();
-  });
-  toInput.addEventListener("input", () => {
-    state.to = Number(toInput.value);
-    if (state.to < state.from) state.from = state.to;
-    changed();
-  });
-  $("#now").addEventListener("click", () => { setNow(false); changed(); });
-  setupFillDrag();
+  timeInput.min = SLIDER_MIN;
+  timeInput.max = SLIDER_MAX;
+  timeInput.step = STEP;
+  timeInput.addEventListener("input", () => { state.time = Number(timeInput.value); state.follow = false; changed(); });
+  $("#now").addEventListener("click", () => { state.follow = true; setNow(); changed(); });
+  // While following the clock, keep up with it.
+  setInterval(() => { if (state.follow) { setNow(); changed(); } }, 30000);
 
   document.querySelectorAll("[data-toggle]").forEach((input) => {
+    input.checked = state.toggles[input.dataset.toggle];
     input.addEventListener("change", () => { state.toggles[input.dataset.toggle] = input.checked; applyFilters(); });
   });
   document.querySelectorAll("[data-style]").forEach((button) => {
@@ -326,29 +319,6 @@ function setupControls() {
   const syncHeight = () => document.documentElement.style.setProperty("--time-h", `${time.offsetHeight}px`);
   new ResizeObserver(syncHeight).observe(time);
   syncHeight();
-}
-
-// Dragging the bar between the handles moves the whole window through the day.
-function setupFillDrag() {
-  const fill = $("#fill"), range = $("#range");
-  let drag = null;
-  fill.addEventListener("pointerdown", (e) => {
-    drag = { x: e.clientX, from: state.from, to: state.to };
-    fill.setPointerCapture(e.pointerId);
-    e.preventDefault();
-  });
-  fill.addEventListener("pointermove", (e) => {
-    if (!drag) return;
-    const minutesPerPixel = (SLIDER_MAX - SLIDER_MIN) / (range.clientWidth - 24);
-    const raw = Math.round(((e.clientX - drag.x) * minutesPerPixel) / STEP) * STEP;
-    const delta = Math.max(SLIDER_MIN - drag.from, Math.min(SLIDER_MAX - drag.to, raw));
-    state.from = drag.from + delta;
-    state.to = drag.to + delta;
-    changed();
-  });
-  const end = () => { drag = null; };
-  fill.addEventListener("pointerup", end);
-  fill.addEventListener("pointercancel", end);
 }
 
 function switchStyle(name) {
@@ -425,7 +395,7 @@ function renderDetail() {
 
   const kindName = place.kind === "bakery" ? "bakery" : "café";
   const status = statusOf(place);
-  const windowText = state.from === state.to ? `at ${clock(state.from)}` : `${clock(state.from)}–${clock(state.to)}`;
+  const windowText = `at ${clock(state.time)}`;
   const stateText = {
     open: `Open ${windowText}, ${DAY_NAMES[state.day]}`,
     closed: `Not open ${windowText}, ${DAY_NAMES[state.day]}`,
@@ -488,7 +458,7 @@ function showCounts() {
   document.querySelectorAll("[data-count]").forEach((node) => { node.textContent = counts[node.dataset.count]; });
 }
 
-setNow(true);
+setNow();
 setupControls();
 renderTime();
 

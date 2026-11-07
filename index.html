@@ -47,19 +47,14 @@
 <section id="time" class="card-surface" aria-label="Choose a day and time">
   <div class="time-head">
     <div id="days" role="group" aria-label="Day of the week"></div>
-    <button type="button" id="now">Now</button>
+    <button type="button" id="now" aria-pressed="true">Now</button>
   </div>
   <p id="window" aria-live="polite"></p>
   <div id="range">
     <div class="track"></div>
-    <div class="fill" id="fill" title="Drag to move the whole time window"></div>
-    <input type="range" id="from" min="300" max="1440" step="15" aria-label="Open from">
-    <input type="range" id="to" min="300" max="1440" step="15" aria-label="Open until">
+    <input type="range" id="at" min="360" max="1320" step="5" aria-label="Time of day">
   </div>
-  <div class="ticks" aria-hidden="true">
-    <span style="left:0%">05</span><span style="left:21.05%">09</span><span style="left:42.11%">13</span>
-    <span style="left:63.16%">17</span><span style="left:84.21%">21</span><span style="left:100%">24</span>
-  </div>
+  <div class="ticks" aria-hidden="true"><span style="left:0.00%">06</span><span style="left:12.50%">08</span><span style="left:25.00%">10</span><span style="left:37.50%">12</span><span style="left:50.00%">14</span><span style="left:62.50%">16</span><span style="left:75.00%">18</span><span style="left:87.50%">20</span><span style="left:100.00%">22</span></div>
 </section>
 
 <aside id="detail" class="card-surface" hidden></aside>
