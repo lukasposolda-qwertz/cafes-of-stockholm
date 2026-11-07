@@ -26,7 +26,8 @@ OUTDOOR_YES = {"yes", "sidewalk", "terrace", "pedestrian_zone", "garden", "veran
 DAY = r"(?:Mo|Tu|We|Th|Fr|Sa|Su)"
 DAY_SELECTOR = rf"{DAY}(?:\s*-\s*{DAY})?(?:\s*,\s*{DAY}(?:\s*-\s*{DAY})?)*"
 TIME = r"\d{1,2}:\d{2}"
-SPAN = rf"{TIME}\s*-\s*{TIME}\+?"
+# "09:00+" means open from 09:00 until late.
+SPAN = rf"(?:{TIME}\s*-\s*{TIME}\+?|{TIME}\+)"
 RULE = re.compile(rf"^(?:({DAY_SELECTOR})(?:\s*,\s*PH)?\s*:?\s*)?(off|closed|{SPAN}(?:\s*,\s*{SPAN})*)$", re.I)
 SEASONAL = re.compile(r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|week|\d{4}|easter)\b", re.I)
 PUBLIC_HOLIDAY = re.compile(r"^(?:PH|SH)\b", re.I)
@@ -81,6 +82,11 @@ def parse_hours(value):
             continue
         spans = []
         for span in body.split(","):
+            span = span.strip()
+            if "-" not in span:
+                # Open end: counted as open until midnight, and flagged so the card can say "until late".
+                spans.append([minutes(span.rstrip("+")), 1440, 1])
+                continue
             start, end = [p.strip().rstrip("+") for p in span.split("-")]
             opens, closes = minutes(start), minutes(end)
             if closes <= opens:
@@ -106,6 +112,8 @@ def self_test():
          {**{d: [[420, 1140]] for d in DAYS[:5]}, "Sa": [[570, 1080]], "Su": [[570, 1080]]}),
         ("Mo-Fr 07:00-18:00; Jul off", {**week, **{d: [[420, 1080]] for d in DAYS[:5]}}),
         ("24/7", {d: [[0, 1440]] for d in DAYS}),
+        ("Mo,Tu 09:00-18:00; We-Sa 09:00+; Su 09:00-18:00",
+         {**{d: [[540, 1080]] for d in ("Mo", "Tu", "Su")}, **{d: [[540, 1440, 1]] for d in ("We", "Th", "Fr", "Sa")}}),
         ("Mo-Fr sunrise-sunset", None),
         ('Mo-Fr "by appointment"', None),
         ("Jun-Aug Mo-Fr 08:00-16:00", None),
@@ -179,7 +187,6 @@ def build(raw):
             "raw_hours": text(tags, "opening_hours"),
             "hours": parse_hours(tags.get("opening_hours")),
             "specialty": tags.get("drink:coffee") in ("specialty", "speciality"),
-            "microroasting": tags.get("microroasting") == "yes",
             "outdoor": tags.get("outdoor_seating") in OUTDOOR_YES,
             "brand": text(tags, "brand"),
             "website": web_url(text(tags, "website", "contact:website")),
@@ -207,7 +214,7 @@ def report(places, built_from):
     print(f"cafes {len(cafes)}, bakeries {len(places) - len(cafes)}")
     print("cafes with raw hours", sum(1 for p in cafes if p["raw_hours"]),
           "| usable on the slider", sum(1 for p in cafes if p["hours"]))
-    print("specialty", sum(p["specialty"] for p in cafes), "| microroasting", sum(p["microroasting"] for p in cafes),
+    print("specialty", sum(p["specialty"] for p in places),
           "| outdoor", sum(p["outdoor"] for p in cafes), "| chain", sum(p["chain"] for p in cafes),
           "| unnamed", sum(1 for p in cafes if not p["name"]))
     print("chain names:", Counter(p["name"] for p in cafes if p["chain"]).most_common(40))
