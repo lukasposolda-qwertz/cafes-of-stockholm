@@ -9,12 +9,26 @@ const STYLES = {
   light: { url: `${OFM}/styles/positron`, building: "#e3e4e6" },
   standard: { url: `${OFM}/styles/liberty`, building: "#e0d8d0" },
 };
-const CUP_COLOURS = { open: "#6f4323", closed: "#a8968a", unknown: "#9aa0a6", bakery: "#b8741f", selected: "#c8501a" };
+// Open places are filled, closed ones hollow, and places without hours grey, so all three read at a glance.
+const ICON_STYLES = {
+  cup: {
+    open: { fill: "#6b3a1c", line: "#6b3a1c" },
+    closed: { fill: "#ffffff", line: "#8c6a52" },
+    unknown: { fill: "#d5d8db", line: "#7b838a" },
+    selected: { fill: "#c8501a", line: "#c8501a" },
+  },
+  bun: {
+    open: { fill: "#d29a4e", line: "#6b3a1c" },
+    closed: { fill: "#ffffff", line: "#a8763c" },
+    unknown: { fill: "#d5d8db", line: "#7b838a" },
+    selected: { fill: "#f0a060", line: "#c8501a" },
+  },
+};
 
 const state = {
   // follow: the time tracks the clock until someone picks a day or time themselves.
   day: 0, time: 540, follow: true, styleName: "light", selected: null,
-  toggles: { specialty: true, microroasting: false, outdoor: false, hideChains: false, bakeries: false, showNoHours: true },
+  toggles: { specialty: true, bakeries: false, outdoor: false, hideChains: false, showNoHours: true },
 };
 let places = [];
 
@@ -52,17 +66,16 @@ function statusOf(place) {
 
 function isVisible(place) {
   const t = state.toggles;
-  if (place.kind === "bakery" && !t.bakeries) return false;
   if (t.specialty && !place.specialty) return false;
-  if (t.microroasting && !place.microroasting) return false;
+  if (t.bakeries && place.kind !== "bakery") return false;
   if (t.outdoor && !place.outdoor) return false;
   if (t.hideChains && place.chain) return false;
   if (!place.hours && !t.showNoHours) return false;
   return true;
 }
 
-// ---- cup icons --------------------------------------------------------------------------
-function drawCup(ctx, colour, size) {
+// ---- icons ------------------------------------------------------------------------------
+function drawCup(ctx, { fill, line }, size) {
   const s = size / 48;
   ctx.save();
   ctx.scale(s, s);
@@ -95,19 +108,45 @@ function drawCup(ctx, colour, size) {
   ctx.lineWidth = 8;
   shape(); ctx.stroke();
   handle(); ctx.stroke();
-  ctx.fillStyle = colour;
-  ctx.strokeStyle = colour;
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = line;
   ctx.lineWidth = 3.5;
   shape(); ctx.fill(); ctx.stroke();
   handle(); ctx.stroke();
   ctx.restore();
 }
 
-function cupImage(colour) {
+// A cinnamon bun seen from above: a round bun with the swirl of the roll.
+function drawBun(ctx, { fill, line }, size) {
+  const s = size / 48;
+  ctx.save();
+  ctx.scale(s, s);
+  const cx = 24, cy = 25;
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(cx, cy, 19, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 3.2;
+  ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  const turns = 2.2, end = turns * Math.PI * 2;
+  for (let a = 0; a <= end; a += 0.12) {
+    const r = 1.2 + (10.5 * a) / end;
+    const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+    if (a === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+const DRAW = { cup: drawCup, bun: drawBun };
+function iconImage(shape, style) {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 96;
   const ctx = canvas.getContext("2d");
-  drawCup(ctx, colour, 96);
+  DRAW[shape](ctx, style, 96);
   return ctx.getImageData(0, 0, 96, 96);
 }
 
@@ -152,12 +191,14 @@ map.once("load", () => {
 });
 
 const ICON_SIZE = ["interpolate", ["linear"], ["zoom"], 11, 0.2, 13, 0.3, 15, 0.42, 18, 0.62];
-const ICON_FOR_OPEN = ["case", ["==", ["get", "kind"], "bakery"], "cup-bakery", "cup-open"];
+const iconFor = (status) => ["case", ["==", ["get", "kind"], "bakery"], `bun-${status}`, `cup-${status}`];
 const NOTHING = ["in", ["get", "i"], ["literal", []]];
 
 function addOwnLayers() {
-  for (const [name, colour] of Object.entries(CUP_COLOURS)) {
-    if (!map.hasImage(`cup-${name}`)) map.addImage(`cup-${name}`, cupImage(colour), { pixelRatio: 2 });
+  for (const [shape, styles] of Object.entries(ICON_STYLES)) {
+    for (const [status, style] of Object.entries(styles)) {
+      if (!map.hasImage(`${shape}-${status}`)) map.addImage(`${shape}-${status}`, iconImage(shape, style), { pixelRatio: 2 });
+    }
   }
   // The huge city name lands on top of the cups in Gamla stan.
   for (const id of ["label_city", "label_city_capital"]) {
@@ -180,14 +221,13 @@ function addOwnLayers() {
   }
   if (!map.getSource("places")) {
     map.addSource("places", { type: "geojson", data: placesGeoJson() });
-    const cupLayer = (id, image, opacity) => map.addLayer({
+    const cupLayer = (id, status) => map.addLayer({
       id, type: "symbol", source: "places", filter: NOTHING,
-      layout: { "icon-image": image, "icon-size": ICON_SIZE, "icon-allow-overlap": true, "icon-ignore-placement": true },
-      paint: { "icon-opacity": opacity },
+      layout: { "icon-image": iconFor(status), "icon-size": ICON_SIZE, "icon-allow-overlap": true, "icon-ignore-placement": true },
     });
-    cupLayer("cups-unknown", "cup-unknown", 0.6);
-    cupLayer("cups-closed", "cup-closed", 0.45);
-    cupLayer("cups-open", ICON_FOR_OPEN, 1);
+    cupLayer("cups-unknown", "unknown");
+    cupLayer("cups-closed", "closed");
+    cupLayer("cups-open", "open");
     map.addLayer({
       id: "cups-labels", type: "symbol", source: "places", filter: NOTHING, minzoom: 15,
       layout: {
@@ -199,7 +239,7 @@ function addOwnLayers() {
     map.addLayer({
       id: "cups-selected", type: "symbol", source: "places", filter: NOTHING,
       layout: {
-        "icon-image": "cup-selected", "icon-allow-overlap": true, "icon-ignore-placement": true,
+        "icon-image": iconFor("selected"), "icon-allow-overlap": true, "icon-ignore-placement": true,
         "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.4, 15, 0.7, 18, 0.9],
       },
     });
@@ -247,7 +287,7 @@ function applyFilters() {
     map.setFilter("cups-labels", inGroup(groups.open));
     map.setFilter("cups-selected", inGroup(state.selected === null ? [] : [state.selected]));
   }
-  const noun = state.toggles.bakeries ? "places" : "cafés";
+  const noun = state.toggles.bakeries ? "bakeries" : "cafés";
   const count = $("#count");
   count.textContent = "";
   const open = document.createElement("b");
@@ -310,9 +350,9 @@ function setupControls() {
   map.on("pitch", () => { tilt.textContent = map.getPitch() > 5 ? "Flat" : "Tilt"; });
   $("#filters").open = !isPhone;
 
-  document.querySelectorAll("canvas[data-cup]").forEach((canvas) => {
-    drawCup(canvas.getContext("2d"), CUP_COLOURS[canvas.dataset.cup], 48);
-    canvas.style.opacity = { open: 1, closed: 0.45, unknown: 0.6 }[canvas.dataset.cup];
+  document.querySelectorAll("canvas[data-icon]").forEach((canvas) => {
+    const [shape, status] = canvas.dataset.icon.split("-");
+    DRAW[shape](canvas.getContext("2d"), ICON_STYLES[shape][status], 48);
   });
 
   const time = $("#time");
@@ -408,7 +448,9 @@ function renderDetail() {
     const table = element("table", { className: "week" });
     DAYS.forEach((d, i) => {
       const spans = place.hours[d] || [];
-      const value = spans.length ? spans.map(([o, c]) => `${clock(o)}–${clockPastMidnight(c)}`).join(", ") : "Closed";
+      const value = spans.length
+        ? spans.map(([o, c, openEnd]) => (openEnd ? `${clock(o)} until late` : `${clock(o)}–${clockPastMidnight(c)}`)).join(", ")
+        : "Closed";
       const row = element("tr", {}, element("td", { textContent: DAY_NAMES[i] }), element("td", { textContent: value }));
       if (i === state.day) row.className = "selected";
       table.append(row);
@@ -420,7 +462,6 @@ function renderDetail() {
 
   const chips = [];
   if (place.specialty) chips.push("Specialty");
-  if (place.microroasting) chips.push("Microroasting");
   if (place.outdoor) chips.push("Outdoor seating");
   if (place.wheelchair === "yes") chips.push("Wheelchair access");
   if (place.chain) chips.push("Chain");
@@ -446,14 +487,12 @@ function showFatal(message) {
 
 // ---- start ------------------------------------------------------------------------------
 function showCounts() {
-  const cafes = places.filter((p) => p.kind === "cafe");
   const counts = {
-    specialty: cafes.filter((p) => p.specialty).length,
-    microroasting: cafes.filter((p) => p.microroasting).length,
-    outdoor: cafes.filter((p) => p.outdoor).length,
-    chain: cafes.filter((p) => p.chain).length,
-    bakery: places.length - cafes.length,
-    noHours: cafes.filter((p) => !p.hours).length,
+    specialty: places.filter((p) => p.specialty).length,
+    bakery: places.filter((p) => p.kind === "bakery").length,
+    outdoor: places.filter((p) => p.outdoor).length,
+    chain: places.filter((p) => p.chain).length,
+    noHours: places.filter((p) => !p.hours).length,
   };
   document.querySelectorAll("[data-count]").forEach((node) => { node.textContent = counts[node.dataset.count]; });
 }

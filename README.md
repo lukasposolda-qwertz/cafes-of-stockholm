@@ -4,7 +4,7 @@ A test map of Stockholm's cafés. The main feature is a time slider: it starts a
 
 ## Scope
 
-Every place OpenStreetMap tags as `amenity=cafe`, `shop=coffee` or `shop=bakery` inside six municipalities: Stockholm, Solna, Sundbyberg, Nacka, Lidingö and Danderyd. The borders come from OSM. Bakeries are hidden until switched on.
+Every place OpenStreetMap tags as `amenity=cafe`, `shop=coffee` or `shop=bakery` inside six municipalities: Stockholm, Solna, Sundbyberg, Nacka, Lidingö and Danderyd. The borders come from OSM. Bakeries are counted as cafés and drawn as a cinnamon bun.
 
 Live: https://lukasposolda-qwertz.github.io/cafes-of-stockholm/
 
@@ -19,7 +19,7 @@ The data is a one-time snapshot, with its date shown on the page.
 
 - Hours describe a normal week. Seasonal and public-holiday rules are skipped.
 - Cafés with no hours, or hours too irregular to parse, appear as grey cups.
-- Specialty and microroasting come straight from OSM tags, which very few cafés have.
+- Specialty comes straight from the OSM tag `drink:coffee=specialty`, which few places have yet. Bakeries count as cafés and have their own filter.
 - Chains are places with an OSM brand tag, plus places sharing a name with one, so not every chain is caught.
 
 ## Data and credits
