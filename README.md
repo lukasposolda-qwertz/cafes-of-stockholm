@@ -4,7 +4,7 @@ A test map of Stockholm's cafés. The main feature is a time slider: it starts a
 
 ## Scope
 
-Every place OpenStreetMap tags as `amenity=cafe`, `shop=coffee` or `shop=bakery` inside six municipalities: Stockholm, Solna, Sundbyberg, Nacka, Lidingö and Danderyd. The borders come from OSM. Bakeries are counted as cafés and drawn as a cinnamon bun.
+Every place OpenStreetMap tags as `amenity=cafe`, `shop=coffee` or `shop=bakery` inside six municipalities: Stockholm, Solna, Sundbyberg, Nacka, Lidingö and Danderyd. The borders come from OSM. Cafés are drawn as a cup and bakeries as a croissant. Open places steam, closed ones are hollow and places without hours are grey; specialty coffee places are drawn a quarter larger.
 
 Live: https://lukasposolda-qwertz.github.io/cafes-of-stockholm/
 
@@ -19,7 +19,9 @@ The data is a snapshot, with its date shown on the page. A GitHub Action (`.gith
 
 - Hours describe a normal week. Seasonal and public-holiday rules are skipped.
 - Cafés with no hours, or hours too irregular to parse, appear as grey cups.
-- Specialty comes straight from the OSM tag `drink:coffee=specialty`, which few places have yet. Bakeries count as cafés and have their own filter.
+- Specialty coffee comes straight from the OSM tag `drink:coffee=specialty`, which few places have yet. It is the main switch and on by default.
+- Filters come in two groups. "Show" picks the kinds of place (cafés, bakeries) and each tick adds places. "Only" narrows the map (outdoor seating, independents, with opening hours), so places without hours are on the map unless you ask for only those with hours.
+- The steam is an animation of about eight frames a second. It stops when the system asks for reduced motion or the tab is hidden.
 - Chains are places with an OSM brand tag, plus places sharing a name with one, so not every chain is caught.
 
 ## Data and credits

@@ -9,7 +9,7 @@ const STYLES = {
   light: { url: `${OFM}/styles/positron`, building: "#e3e4e6" },
   standard: { url: `${OFM}/styles/liberty`, building: "#e0d8d0" },
 };
-// Open places are filled, closed ones hollow, and places without hours grey, so all three read at a glance.
+// Open places are filled and steaming, closed ones hollow, and places without hours grey, so all three read at a glance.
 const ICON_STYLES = {
   cup: {
     open: { fill: "#6b3a1c", line: "#6b3a1c" },
@@ -17,18 +17,23 @@ const ICON_STYLES = {
     unknown: { fill: "#d5d8db", line: "#7b838a" },
     selected: { fill: "#c8501a", line: "#c8501a" },
   },
-  bun: {
-    open: { fill: "#d29a4e", line: "#6b3a1c" },
+  croissant: {
+    open: { fill: "#d89a45", line: "#6b3a1c" },
     closed: { fill: "#ffffff", line: "#a8763c" },
     unknown: { fill: "#d5d8db", line: "#7b838a" },
     selected: { fill: "#f0a060", line: "#c8501a" },
   },
 };
+const STEAM_COLOR = "#8f735e";
+const ICON_PX = 128; // drawn at 2× pixel ratio, so icon-size 1 is 64 CSS pixels
+const STEAM_FRAMES = 12, STEAM_FRAME_MS = 130;
+const calm = matchMedia("(prefers-reduced-motion: reduce)");
 
 const state = {
   // follow: the time tracks the clock until someone picks a day or time themselves.
   day: 0, time: 540, follow: true, styleName: "light", selected: null,
-  toggles: { specialty: true, bakeries: false, outdoor: false, hideChains: false, showNoHours: true },
+  // specialty: the main switch. Show: which kinds of place. Only: each one narrows the map further.
+  toggles: { specialty: true, cafes: true, bakeries: true, outdoor: false, independent: false, withHours: false },
 };
 let places = [];
 
@@ -67,10 +72,10 @@ function statusOf(place) {
 function isVisible(place) {
   const t = state.toggles;
   if (t.specialty && !place.specialty) return false;
-  if (t.bakeries && place.kind !== "bakery") return false;
+  if (!(place.kind === "bakery" ? t.bakeries : t.cafes)) return false;
   if (t.outdoor && !place.outdoor) return false;
-  if (t.hideChains && place.chain) return false;
-  if (!place.hours && !t.showNoHours) return false;
+  if (t.independent && place.chain) return false;
+  if (t.withHours && !place.hours) return false;
   return true;
 }
 
@@ -116,39 +121,71 @@ function drawCup(ctx, { fill, line }, size) {
   ctx.restore();
 }
 
-// A cinnamon bun seen from above: a round bun with the swirl of the roll.
-function drawBun(ctx, { fill, line }, size) {
+// A croissant: five rolled lobes along a crescent, small at the horns and largest in the middle.
+const CROISSANT_LOBES = [
+  // [angle on the crescent in degrees, radius across the croissant, radius along it]
+  [-170, 3.4, 6.4], [-131, 7.4, 6.2], [-90, 9.2, 7.2], [-49, 7.4, 6.2], [-10, 3.4, 6.4],
+];
+function drawCroissant(ctx, { fill, line }, size) {
   const s = size / 48;
   ctx.save();
   ctx.scale(s, s);
-  const cx = 24, cy = 25;
-  ctx.fillStyle = "#fff";
-  ctx.beginPath(); ctx.arc(cx, cy, 19, 0, Math.PI * 2); ctx.fill();
+  const cx = 24, cy = 40, bend = 15;
+  const lobe = ([deg, across, along]) => {
+    const a = (deg * Math.PI) / 180;
+    ctx.beginPath();
+    ctx.ellipse(cx + bend * Math.cos(a), cy + bend * Math.sin(a), across, along, a, 0, Math.PI * 2);
+  };
+  // Horns first and the middle last, so each lobe overlaps the one outside it.
+  const order = [0, 4, 1, 3, 2].map((k) => CROISSANT_LOBES[k]);
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 7;
+  order.forEach((l) => { lobe(l); ctx.stroke(); });
   ctx.fillStyle = fill;
   ctx.strokeStyle = line;
-  ctx.lineWidth = 3.2;
-  ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.lineWidth = 2.6;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  const turns = 2.2, end = turns * Math.PI * 2;
-  for (let a = 0; a <= end; a += 0.12) {
-    const r = 1.2 + (10.5 * a) / end;
-    const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
-    if (a === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
+  ctx.lineWidth = 2.8;
+  order.forEach((l) => { lobe(l); ctx.fill(); ctx.stroke(); });
   ctx.restore();
 }
 
-const DRAW = { cup: drawCup, bun: drawBun };
-function iconImage(shape, style) {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 96;
-  const ctx = canvas.getContext("2d");
-  DRAW[shape](ctx, style, 96);
-  return ctx.getImageData(0, 0, 96, 96);
+// Three wisps of steam rising from the top of the cup or croissant. phase runs 0..1 and loops.
+const STEAM_AT = { cup: { cx: 21, base: 13 }, croissant: { cx: 24, base: 15 } };
+function drawSteam(ctx, shape, phase, size) {
+  const { cx, base } = STEAM_AT[shape];
+  const s = size / 48;
+  ctx.save();
+  ctx.scale(s, s);
+  ctx.lineCap = "round";
+  [-6, 0, 6].forEach((dx, i) => {
+    const progress = (phase + i / 3) % 1;
+    const bottom = base - progress * 5, top = bottom - 7;
+    const points = [];
+    for (let y = bottom; y >= top; y -= 0.5) points.push([cx + dx + 1.6 * Math.sin((y + progress * 12) / 2.2), y]);
+    const wisp = () => { ctx.beginPath(); points.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); };
+    ctx.globalAlpha = 0.2 + 0.8 * Math.sin(Math.PI * progress);
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 5.6; wisp(); ctx.stroke();
+    ctx.strokeStyle = STEAM_COLOR; ctx.lineWidth = 3; wisp(); ctx.stroke();
+  });
+  ctx.restore();
 }
+
+const DRAW = { cup: drawCup, croissant: drawCroissant };
+// steam: a phase from 0 to 1 for open places, or null for no steam.
+function drawIcon(ctx, shape, status, size, steam = null) {
+  ctx.clearRect(0, 0, size, size);
+  DRAW[shape](ctx, ICON_STYLES[shape][status], size);
+  if (steam !== null) drawSteam(ctx, shape, steam, size);
+}
+const scratch = document.createElement("canvas");
+scratch.width = scratch.height = ICON_PX;
+function iconImage(shape, status, steam = null) {
+  const ctx = scratch.getContext("2d", { willReadFrequently: true });
+  drawIcon(ctx, shape, status, ICON_PX, steam);
+  return ctx.getImageData(0, 0, ICON_PX, ICON_PX);
+}
+// Every frame of the steam is drawn once up front; the animation only swaps them.
+const steamFrames = Object.fromEntries(Object.keys(DRAW).map((shape) =>
+  [shape, Array.from({ length: STEAM_FRAMES }, (_, k) => iconImage(shape, "open", k / STEAM_FRAMES))]));
 
 // ---- map --------------------------------------------------------------------------------
 const probe = document.createElement("canvas");
@@ -190,14 +227,20 @@ map.once("load", () => {
   }
 });
 
-const ICON_SIZE = ["interpolate", ["linear"], ["zoom"], 11, 0.2, 13, 0.3, 15, 0.42, 18, 0.62];
-const iconFor = (status) => ["case", ["==", ["get", "kind"], "bakery"], `bun-${status}`, `cup-${status}`];
+// Icons grow as you zoom in (64 CSS px × size): about 15 px over the whole city, about 43 px at street level.
+// Specialty coffee places are a quarter larger and drawn on top of their neighbours.
+const SIZE_STOPS = [[11, 0.24], [13, 0.36], [15, 0.5], [18, 0.68]];
+const SPECIALTY_SCALE = 1.25;
+const iconSize = (factor = 1) => ["interpolate", ["linear"], ["zoom"],
+  ...SIZE_STOPS.flatMap(([zoom, size]) => [zoom, ["case", ["get", "specialty"], size * factor * SPECIALTY_SCALE, size * factor]])];
+const iconFor = (status) => ["case", ["==", ["get", "kind"], "bakery"], `croissant-${status}`, `cup-${status}`];
 const NOTHING = ["in", ["get", "i"], ["literal", []]];
 
 function addOwnLayers() {
   for (const [shape, styles] of Object.entries(ICON_STYLES)) {
-    for (const [status, style] of Object.entries(styles)) {
-      if (!map.hasImage(`${shape}-${status}`)) map.addImage(`${shape}-${status}`, iconImage(shape, style), { pixelRatio: 2 });
+    for (const status of Object.keys(styles)) {
+      const image = status === "open" ? steamFrames[shape][steamFrame] : iconImage(shape, status);
+      if (!map.hasImage(`${shape}-${status}`)) map.addImage(`${shape}-${status}`, image, { pixelRatio: 2 });
     }
   }
   // The huge city name lands on top of the cups in Gamla stan.
@@ -223,7 +266,10 @@ function addOwnLayers() {
     map.addSource("places", { type: "geojson", data: placesGeoJson() });
     const cupLayer = (id, status) => map.addLayer({
       id, type: "symbol", source: "places", filter: NOTHING,
-      layout: { "icon-image": iconFor(status), "icon-size": ICON_SIZE, "icon-allow-overlap": true, "icon-ignore-placement": true },
+      layout: {
+        "icon-image": iconFor(status), "icon-size": iconSize(), "icon-allow-overlap": true, "icon-ignore-placement": true,
+        "symbol-sort-key": ["case", ["get", "specialty"], 1, 0],
+      },
     });
     cupLayer("cups-unknown", "unknown");
     cupLayer("cups-closed", "closed");
@@ -232,7 +278,7 @@ function addOwnLayers() {
       id: "cups-labels", type: "symbol", source: "places", filter: NOTHING, minzoom: 15,
       layout: {
         "text-field": ["get", "name"], "text-font": ["Noto Sans Regular"], "text-size": 12,
-        "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true, "text-max-width": 9,
+        "text-offset": [0, 1.7], "text-anchor": "top", "text-optional": true, "text-max-width": 9,
       },
       paint: { "text-color": "#2b211a", "text-halo-color": "#fff", "text-halo-width": 1.4 },
     });
@@ -240,7 +286,7 @@ function addOwnLayers() {
       id: "cups-selected", type: "symbol", source: "places", filter: NOTHING,
       layout: {
         "icon-image": iconFor("selected"), "icon-allow-overlap": true, "icon-ignore-placement": true,
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.4, 15, 0.7, 18, 0.9],
+        "icon-size": iconSize(1.35),
       },
     });
   }
@@ -253,10 +299,29 @@ function placesGeoJson() {
     features: places.map((p, i) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates: [p.lon, p.lat] },
-      properties: { i, kind: p.kind, name: p.name },
+      properties: { i, kind: p.kind, name: p.name, specialty: p.specialty },
     })),
   };
 }
+
+// ---- steam ------------------------------------------------------------------------------
+// One timer swaps the open icons' image about eight times a second, so the map redraws at that
+// rate rather than every frame. Off when the system asks for less motion or the tab is hidden.
+let steamFrame = 0;
+const steamingCanvases = [];
+function stepSteam() {
+  if (calm.matches || document.hidden) return;
+  steamFrame = (steamFrame + 1) % STEAM_FRAMES;
+  if (styleReady && dataReady) {
+    for (const shape of Object.keys(DRAW)) {
+      if (map.hasImage(`${shape}-open`)) map.updateImage(`${shape}-open`, steamFrames[shape][steamFrame]);
+    }
+  }
+  for (const { canvas, shape } of steamingCanvases) {
+    drawIcon(canvas.getContext("2d"), shape, "open", canvas.width, steamFrame / STEAM_FRAMES);
+  }
+}
+setInterval(stepSteam, STEAM_FRAME_MS);
 
 let dataReady = false, styleReady = false;
 function startIfReady() { if (dataReady && styleReady) addOwnLayers(); }
@@ -287,13 +352,17 @@ function applyFilters() {
     map.setFilter("cups-labels", inGroup(groups.open));
     map.setFilter("cups-selected", inGroup(state.selected === null ? [] : [state.selected]));
   }
-  const noun = state.toggles.bakeries ? "bakeries" : "cafés";
+  // Say exactly what is being counted: cafés, bakeries, or both ("places").
+  const t = state.toggles;
+  const kind = t.cafes && !t.bakeries ? "cafés" : t.bakeries && !t.cafes ? "bakeries" : "places";
+  const noun = t.specialty ? `specialty coffee ${kind}` : kind;
   const count = $("#count");
   count.textContent = "";
   const open = document.createElement("b");
   open.textContent = groups.open.length;
   count.append(open, ` of ${cafesShown + bakeriesShown} ${noun} open`);
-  count.title = `${groups.closed.length} closed, ${groups.unknown.length} without hours`;
+  count.title = `${cafesShown} cafés and ${bakeriesShown} bakeries shown: ${groups.open.length} open, `
+    + `${groups.closed.length} closed, ${groups.unknown.length} without hours`;
   if (state.selected !== null) renderDetail();
 }
 
@@ -352,7 +421,9 @@ function setupControls() {
 
   document.querySelectorAll("canvas[data-icon]").forEach((canvas) => {
     const [shape, status] = canvas.dataset.icon.split("-");
-    DRAW[shape](canvas.getContext("2d"), ICON_STYLES[shape][status], 48);
+    const steams = "steam" in canvas.dataset;
+    drawIcon(canvas.getContext("2d"), shape, status, canvas.width, steams ? 0 : null);
+    if (steams) steamingCanvases.push({ canvas, shape });
   });
 
   const time = $("#time");
@@ -371,7 +442,7 @@ function switchStyle(name) {
 
 // ---- selecting a café -------------------------------------------------------------------
 map.on("click", (e) => {
-  const reach = 12;
+  const reach = 16;
   const box = [[e.point.x - reach, e.point.y - reach], [e.point.x + reach, e.point.y + reach]];
   const layers = ["cups-selected", "cups-open", "cups-closed", "cups-unknown"].filter((id) => map.getLayer(id));
   const hits = map.queryRenderedFeatures(box, { layers });
@@ -461,7 +532,7 @@ function renderDetail() {
   }
 
   const chips = [];
-  if (place.specialty) chips.push("Specialty");
+  if (place.specialty) chips.push("Specialty coffee");
   if (place.outdoor) chips.push("Outdoor seating");
   if (place.wheelchair === "yes") chips.push("Wheelchair access");
   if (place.chain) chips.push("Chain");
@@ -489,10 +560,11 @@ function showFatal(message) {
 function showCounts() {
   const counts = {
     specialty: places.filter((p) => p.specialty).length,
+    cafe: places.filter((p) => p.kind !== "bakery").length,
     bakery: places.filter((p) => p.kind === "bakery").length,
     outdoor: places.filter((p) => p.outdoor).length,
-    chain: places.filter((p) => p.chain).length,
-    noHours: places.filter((p) => !p.hours).length,
+    independent: places.filter((p) => !p.chain).length,
+    withHours: places.filter((p) => p.hours).length,
   };
   document.querySelectorAll("[data-count]").forEach((node) => { node.textContent = counts[node.dataset.count]; });
 }

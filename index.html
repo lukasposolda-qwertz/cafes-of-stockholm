@@ -18,22 +18,33 @@
     <h1>Cafes of Stockholm</h1>
     <p id="count" aria-live="polite">Loading cafés…</p>
   </header>
+  <label class="switch"><input type="checkbox" role="switch" data-toggle="specialty"><span>Specialty coffee</span><em data-count="specialty"></em></label>
   <details id="filters">
     <summary>Filters and legend</summary>
-    <div class="toggles">
-      <label><input type="checkbox" data-toggle="specialty"><span>Specialty</span><em data-count="specialty"></em></label>
+    <fieldset class="toggles">
+      <legend>Show</legend>
+      <label><input type="checkbox" data-toggle="cafes"><span>Cafés</span><em data-count="cafe"></em></label>
       <label><input type="checkbox" data-toggle="bakeries"><span>Bakeries</span><em data-count="bakery"></em></label>
+    </fieldset>
+    <fieldset class="toggles">
+      <legend>Only</legend>
       <label><input type="checkbox" data-toggle="outdoor"><span>Outdoor seating</span><em data-count="outdoor"></em></label>
-      <label><input type="checkbox" data-toggle="hideChains"><span>Hide chains</span><em data-count="chain"></em></label>
-      <label><input type="checkbox" data-toggle="showNoHours" checked><span>Show cafés without hours</span><em data-count="noHours"></em></label>
+      <label><input type="checkbox" data-toggle="independent"><span>Independents, no chains</span><em data-count="independent"></em></label>
+      <label><input type="checkbox" data-toggle="withHours"><span>With opening hours</span><em data-count="withHours"></em></label>
+    </fieldset>
+    <p class="hint">Numbers count places with each tag in OpenStreetMap. Tags are often missing, so a small number doesn't mean few such places exist.</p>
+    <div class="legend">
+      <ul>
+        <li><canvas data-icon="cup-open" width="48" height="48"></canvas>Café</li>
+        <li><canvas data-icon="croissant-open" width="48" height="48"></canvas>Bakery</li>
+      </ul>
+      <ul>
+        <li><canvas data-icon="cup-open" data-steam width="48" height="48"></canvas>Open</li>
+        <li><canvas data-icon="cup-closed" width="48" height="48"></canvas>Closed</li>
+        <li><canvas data-icon="cup-unknown" width="48" height="48"></canvas>No hours</li>
+      </ul>
+      <p><canvas class="big" data-icon="cup-open" width="64" height="64"></canvas>Larger icon: specialty coffee</p>
     </div>
-    <p class="hint">Numbers show cafés with each tag in OpenStreetMap. Tags are often missing, so a small number doesn't mean few such places exist.</p>
-    <ul class="legend">
-      <li><canvas data-icon="cup-open" width="48" height="48"></canvas>Open</li>
-      <li><canvas data-icon="cup-closed" width="48" height="48"></canvas>Closed</li>
-      <li><canvas data-icon="cup-unknown" width="48" height="48"></canvas>No hours</li>
-      <li><canvas data-icon="bun-open" width="48" height="48"></canvas>Bakery</li>
-    </ul>
     <p class="credit">Test version. Hours come from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>, snapshot <span id="snapshot"></span>. Check before you go.<br>© 2026 Lukas Posolda</p>
   </details>
 </section>
