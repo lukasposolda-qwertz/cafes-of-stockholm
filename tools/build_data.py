@@ -7,6 +7,7 @@ parser self-test fails or the download looks too small to be real.
 import json
 import re
 import sys
+import time
 import urllib.parse
 import urllib.request
 from collections import Counter
@@ -17,9 +18,10 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "cafes.json"
 # The city and its inner ring: municipal borders from OSM, so the scope is one sentence and needs no upkeep.
 MUNICIPALITIES = ["Stockholms", "Solna", "Sundbybergs", "Nacka", "Lidingö", "Danderyds"]
-ENDPOINT = "https://overpass-api.de/api/interpreter"
+ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
 USER_AGENT = "cafes-of-stockholm-build/0.1"
 MIN_EXPECTED = 300  # fewer than this means Overpass returned a partial result
+MAX_DROP = 0.15  # losing more than this share of places in one run looks like a broken download, not real closures
 DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 OUTDOOR_YES = {"yes", "sidewalk", "terrace", "pedestrian_zone", "garden", "veranda", "patio"}
 
@@ -133,9 +135,23 @@ def fetch():
              f'(nwr["amenity"="cafe"](area.scope);nwr["shop"="coffee"](area.scope);nwr["shop"="bakery"](area.scope););'
              f'out center meta;')
     body = urllib.parse.urlencode({"data": query}).encode()
-    request = urllib.request.Request(ENDPOINT, data=body, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=240) as response:
-        return json.load(response)
+    # Overpass servers are often busy (502/504), so try each server a few times before giving up.
+    last_error = None
+    for attempt in range(3):
+        for endpoint in ENDPOINTS:
+            try:
+                request = urllib.request.Request(endpoint, data=body, headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(request, timeout=240) as response:
+                    raw = json.load(response)
+                # Some servers answer an area query they can't resolve with an empty result instead of an error.
+                if len(raw.get("elements", [])) < MIN_EXPECTED:
+                    raise ValueError(f"only {len(raw.get('elements', []))} elements")
+                return raw
+            except Exception as error:  # network errors, bad gateways and empty answers alike
+                last_error = error
+                print(f"{endpoint} failed ({error}), trying again", file=sys.stderr)
+        time.sleep(60 * (attempt + 1))
+    raise RuntimeError(f"all Overpass servers failed: {last_error}")
 
 
 def text(tags, *keys):
@@ -232,6 +248,11 @@ def main():
     if len(places) < MIN_EXPECTED:
         print(f"Only {len(places)} places returned, keeping the existing file.", file=sys.stderr)
         return 1
+    if OUT.exists():
+        before = len(json.loads(OUT.read_text(encoding="utf-8"))["places"])
+        if len(places) < before * (1 - MAX_DROP):
+            print(f"{len(places)} places against {before} last time, keeping the existing file.", file=sys.stderr)
+            return 1
     built_from = raw.get("osm3s", {}).get("timestamp_osm_base") or datetime.now(timezone.utc).isoformat()
     OUT.parent.mkdir(parents=True, exist_ok=True)
     payload = {"osm_timestamp": built_from, "places": places}
