@@ -15,7 +15,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "cafes.json"
-BBOX = (59.295, 17.98, 59.36, 18.12)  # south, west, north, east: inner Stockholm and near edge
+# The city and its inner ring: municipal borders from OSM, so the scope is one sentence and needs no upkeep.
+MUNICIPALITIES = ["Stockholms", "Solna", "Sundbybergs", "Nacka", "Lidingö", "Danderyds"]
 ENDPOINT = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "cafes-of-stockholm-build/0.1"
 MIN_EXPECTED = 300  # fewer than this means Overpass returned a partial result
@@ -117,13 +118,15 @@ def self_test():
 
 
 def fetch():
-    south, west, north, east = BBOX
-    box = f"({south},{west},{north},{east})"
-    query = (f'[out:json][timeout:120];(nwr["amenity"="cafe"]{box};nwr["shop"="coffee"]{box};'
-             f'nwr["shop"="bakery"]{box};);out center meta;')
+    names = "|".join(MUNICIPALITIES)
+    query = (f'[out:json][timeout:180];area["name"="Stockholms län"]["admin_level"="4"]->.county;'
+             f'rel(area.county)["boundary"="administrative"]["admin_level"="7"]["name"~"^({names}) kommun$"];'
+             f'map_to_area->.scope;'
+             f'(nwr["amenity"="cafe"](area.scope);nwr["shop"="coffee"](area.scope);nwr["shop"="bakery"](area.scope););'
+             f'out center meta;')
     body = urllib.parse.urlencode({"data": query}).encode()
     request = urllib.request.Request(ENDPOINT, data=body, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=180) as response:
+    with urllib.request.urlopen(request, timeout=240) as response:
         return json.load(response)
 
 
