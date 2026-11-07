@@ -10,20 +10,14 @@ const STYLES = {
   standard: { url: `${OFM}/styles/liberty`, building: "#e0d8d0" },
 };
 // Open places are filled and steaming, closed ones hollow, and places without hours grey, so all three read at a glance.
-const ICON_STYLES = {
-  cup: {
-    open: { fill: "#6b3a1c", line: "#6b3a1c" },
-    closed: { fill: "#ffffff", line: "#8c6a52" },
-    unknown: { fill: "#d5d8db", line: "#7b838a" },
-    selected: { fill: "#c8501a", line: "#c8501a" },
-  },
-  croissant: {
-    open: { fill: "#d89a45", line: "#6b3a1c" },
-    closed: { fill: "#ffffff", line: "#a8763c" },
-    unknown: { fill: "#d5d8db", line: "#7b838a" },
-    selected: { fill: "#f0a060", line: "#c8501a" },
-  },
+// Cups and croissants share one set of colours: only the shape tells a café from a bakery.
+const STATE_STYLES = {
+  open: { fill: "#6b3a1c", line: "#6b3a1c" },
+  closed: { fill: "#ffffff", line: "#8c6a52" },
+  unknown: { fill: "#d5d8db", line: "#7b838a" },
+  selected: { fill: "#c8501a", line: "#c8501a" },
 };
+const ICON_STYLES = { cup: STATE_STYLES, croissant: STATE_STYLES };
 const STEAM_COLOR = "#8f735e";
 const ICON_PX = 128; // drawn at 2× pixel ratio, so icon-size 1 is 64 CSS pixels
 const STEAM_FRAMES = 12, STEAM_FRAME_MS = 130;
@@ -141,10 +135,14 @@ function drawCroissant(ctx, { fill, line }, size) {
   ctx.strokeStyle = "#fff";
   ctx.lineWidth = 7;
   order.forEach((l) => { lobe(l); ctx.stroke(); });
+  // A thin white ring around each lobe keeps the lobes apart even when the croissant is one solid colour.
   ctx.fillStyle = fill;
-  ctx.strokeStyle = line;
-  ctx.lineWidth = 2.8;
-  order.forEach((l) => { lobe(l); ctx.fill(); ctx.stroke(); });
+  order.forEach((l) => {
+    lobe(l);
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 5.2; ctx.stroke();
+    ctx.fill();
+    ctx.strokeStyle = line; ctx.lineWidth = 2.8; ctx.stroke();
+  });
   ctx.restore();
 }
 
@@ -308,14 +306,27 @@ function placesGeoJson() {
 // One timer swaps the open icons' image about eight times a second, so the map redraws at that
 // rate rather than every frame. Off when the system asks for less motion or the tab is hidden.
 let steamFrame = 0;
+// Every steam step redraws the whole map. That is a few milliseconds with a graphics card, but can be
+// a second on a slow device, so each step measures its frame and waits long enough that the steam never
+// takes more than about a quarter of the drawing time. It also pauses while the map is being moved.
+let nextStep = 0;
 const steamingCanvases = [];
 function stepSteam() {
-  if (calm.matches || document.hidden) return;
+  const now = performance.now();
+  if (calm.matches || document.hidden || now < nextStep) return;
+  if (styleReady && dataReady && map.isMoving()) return;
   steamFrame = (steamFrame + 1) % STEAM_FRAMES;
   if (styleReady && dataReady) {
     for (const shape of Object.keys(DRAW)) {
       if (map.hasImage(`${shape}-open`)) map.updateImage(`${shape}-open`, steamFrames[shape][steamFrame]);
     }
+    // updateImage only swaps the picture; the map draws it on its next repaint, which nothing else asks for.
+    nextStep = Infinity;
+    map.once("render", () => {
+      const took = performance.now() - now;
+      nextStep = performance.now() + Math.max(0, took * 3 - STEAM_FRAME_MS);
+    });
+    map.triggerRepaint();
   }
   for (const { canvas, shape } of steamingCanvases) {
     drawIcon(canvas.getContext("2d"), shape, "open", canvas.width, steamFrame / STEAM_FRAMES);

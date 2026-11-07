@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About · Cafes of Stockholm</title>
+<meta name="description" content="How the Cafes of Stockholm map works: what specialty coffee means, how opening hours are read, and where the data comes from.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%236f4323' d='M5 9h18v9a7 7 0 0 1-7 7h-4a7 7 0 0 1-7-7zM23 11h2a4 4 0 0 1 0 8h-2v-2.500h2a1.500 1.500 0 0 0 0-3h-2z'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&display=swap">
+<style>
+  :root { color-scheme: light; --paper: #fbf8f3; --ink: #2b211a; --muted: #6d6157; --line: #e4dcd2; --coffee: #6f4323; --accent: #c8501a; }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body { margin: 0; color: var(--ink); background: var(--paper); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 24px 16px 48px; }
+  .back { display: inline-block; margin-bottom: 18px; color: var(--coffee); font-size: 15px; }
+  h1, h2 { font-family: "Outfit", system-ui, sans-serif; font-weight: 600; line-height: 1.2; letter-spacing: -0.015em; }
+  h1 { margin: 0 0 6px; font-size: 32px; }
+  .lead { margin: 0 0 8px; color: var(--muted); font-size: 18px; }
+  h2 { margin: 36px 0 8px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 23px; }
+  p, ul { margin: 0 0 12px; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--coffee); }
+  code { padding: 1px 5px; border-radius: 4px; background: #f0e9df; font-size: 14px; overflow-wrap: anywhere; }
+  .callout { margin: 16px 0; padding: 14px 16px; border-radius: 10px; background: #f0e9df; }
+  .callout p:last-child { margin-bottom: 0; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  footer a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← Back to the map</a>
+  <h1>About Cafes of Stockholm</h1>
+  <p class="lead">A map of Stockholm's cafés and bakeries that shows which ones are open at the time you choose.</p>
+
+  <h2>What the map shows</h2>
+  <p>Every café, coffee shop and bakery in Stockholm, Solna, Sundbyberg, Nacka, Lidingö and Danderyd that is on OpenStreetMap: <span data-fill="total">about 950</span> places in all. The map opens at the current day and time. Pick another day, or drag the time slider, to see what's open then.</p>
+
+  <h2 id="specialty">What is specialty coffee?</h2>
+  <p>Specialty coffee is coffee made with care at every step, from the farm to your cup. It starts with high-grade beans, usually from a single farm, cooperative or region that the seller can name. The roaster picks a roast that brings out that coffee's own flavours, often lighter than the dark roasts many of us grew up with. Then a barista brews it with the same attention.</p>
+  <p>The <a href="https://sca.coffee/" target="_blank" rel="noopener">Specialty Coffee Association</a>, the trade body behind the term, describes it as coffee recognised for its distinctive qualities, which are what give it extra value. In practice you can usually tell a specialty coffee place by what it tells you: where the beans come from, who roasted them, and how they taste. <a href="https://en.wikipedia.org/wiki/Specialty_coffee" target="_blank" rel="noopener">Wikipedia has more on the background.</a></p>
+  <div class="callout">
+    <p><strong>On this map,</strong> "specialty coffee" means the café, bakery or shop serves or sells specialty coffee. It's a mark of what the place focuses on, not a judgement of everyone else's coffee.</p>
+    <p>The <em>Specialty coffee</em> switch is on when the map opens, so you start with these <span data-fill="specialty">places</span>. Turn it off to see every café and bakery.</p>
+  </div>
+  <p>A place gets the mark when its OpenStreetMap entry has the tag <code>drink:coffee=specialty</code>. Few places carry it yet, so the list is still growing by hand. If you know one that's missing, see <a href="#improve">how to add it</a>.</p>
+
+  <h2>Reading the map</h2>
+  <ul>
+    <li><strong>Shape:</strong> a cup is a café or coffee shop, a croissant is a bakery.</li>
+    <li><strong>Open:</strong> a solid icon with rising steam.</li>
+    <li><strong>Closed:</strong> a hollow icon.</li>
+    <li><strong>No hours:</strong> a grey icon. These places are on the map, but OpenStreetMap doesn't say when they open.</li>
+    <li><strong>Size:</strong> specialty coffee places are drawn a little larger and on top of their neighbours.</li>
+  </ul>
+  <p>Click any icon to see that place's hours for the whole week, links to its website or Instagram, and when its hours were last checked. If you prefer less motion, the steam stops when your device asks for reduced motion.</p>
+
+  <h2>The filters</h2>
+  <ul>
+    <li><strong>Specialty coffee</strong> is the main switch, described above.</li>
+    <li><strong>Show</strong> picks the kinds of place: cafés, bakeries or both.</li>
+    <li><strong>Only</strong> narrows the map down: to places with outdoor seating, to independents (leaving out chains), or to places whose opening hours are known.</li>
+  </ul>
+  <p>The number next to each filter is how many places carry that tag in OpenStreetMap. Tags are often missing, so a small number doesn't mean few such places exist. A chain is a place with a brand tag in OpenStreetMap, or one that shares its name with such a place, so a few chains may slip through.</p>
+
+  <h2>Where the data comes from</h2>
+  <p>Everything comes from <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a>, the free map that anyone can edit. The map picks up places tagged <code>amenity=cafe</code>, <code>shop=coffee</code> or <code>shop=bakery</code> inside the six municipal borders. It is updated from OpenStreetMap every Monday morning; the last update was <span data-fill="updated">recently</span>.</p>
+  <p>Opening hours are read from each place's <code>opening_hours</code> tag, as it describes a normal week:</p>
+  <ul>
+    <li>Days the hours don't mention count as closed.</li>
+    <li>Seasonal and public holiday rules are left out, so hours around summer and holidays may differ.</li>
+    <li>"Until late" counts as open until midnight, and hours past midnight carry over into the next morning.</li>
+    <li>The time slider runs from 06:00 to 22:00, which covers almost every café.</li>
+  </ul>
+  <p>Hours change and not every entry is up to date, so check with the place before you make a special trip.</p>
+
+  <h2 id="improve">Help improve the map</h2>
+  <p>Because the data is OpenStreetMap's, fixing it there fixes it here. Every place's card has an <em>Edit on OSM</em> link. Add missing hours, mark a specialty coffee place with <code>drink:coffee=specialty</code>, or remove a café that has closed. Use what you've seen yourself or the place's own website; OpenStreetMap doesn't allow copying from other maps such as Google Maps. Your change shows up here after the next Monday update.</p>
+
+  <h2>Credits</h2>
+  <ul>
+    <li>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>, available under the Open Database License.</li>
+    <li>Base map from <a href="https://openfreemap.org/" target="_blank" rel="noopener">OpenFreeMap</a>, built on <a href="https://openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a>.</li>
+    <li>Drawn with <a href="https://maplibre.org/" target="_blank" rel="noopener">MapLibre GL JS</a>.</li>
+  </ul>
+
+  <footer>© 2026 Lukas Posolda · <a href="./">Back to the map</a></footer>
+</main>
+<script>
+  // Fill in the live numbers and update date; the page reads fine without them.
+  fetch("data/cafes.json").then((r) => (r.ok ? r.json() : Promise.reject(r.status))).then((data) => {
+    const fill = (key, text) => document.querySelectorAll(`[data-fill="${key}"]`).forEach((n) => { n.textContent = text; });
+    fill("total", data.places.length);
+    fill("specialty", `${data.places.filter((p) => p.specialty).length} places`);
+    fill("updated", new Date(data.osm_timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Stockholm" }));
+  }).catch(() => {});
+</script>
+</body>
+</html>
