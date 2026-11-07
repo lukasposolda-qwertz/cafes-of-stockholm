@@ -3,7 +3,7 @@
 const DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 // Cafés open and close inside this range: under 2% open before 06:00 or close after 22:00.
-const SLIDER_MIN = 360, SLIDER_MAX = 1320, STEP = 5;
+const SLIDER_MIN = 360, SLIDER_MAX = 1320, STEP = 15;
 const OFM = "https://tiles.openfreemap.org";
 const STYLES = {
   light: { url: `${OFM}/styles/positron`, building: "#e3e4e6" },
